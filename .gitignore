@@ -1,0 +1,4 @@
+.env
+*.local
+credentials*
+.DS_Store
