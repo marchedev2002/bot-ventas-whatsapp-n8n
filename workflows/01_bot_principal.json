@@ -1,0 +1,1768 @@
+{
+  "name": "Bot_Ventas_WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1330466881,
+          "mode": "list",
+          "cachedResultName": "CONTACTOS DESACTIVADOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "TELEFONO",
+              "lookupValue": "={{ $json.messages?.[0]?.from }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1056,
+        0
+      ],
+      "id": "2d0aa462-5e79-4884-9a9b-f3eab86b87f6",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b9dce3d9-1c6d-44da-9552-d5fbd3744cca",
+              "leftValue": "={{ $json.TELEFONO !== undefined && $json.TELEFONO !== \"\" }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -832,
+        0
+      ],
+      "id": "75c3ed8e-0bcc-4c3d-a30b-40a1b31fa1d0",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -80
+      ],
+      "id": "a13fd87b-f1a2-442d-8a7d-e9e33241c749",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].text.body : $('Received_msg').first().json.messages[0].text.body }}",
+        "options": {
+          "systemMessage": "Sos el asistente de ventas de [TIENDA], una tienda de paletas de pádel.\nSos \"[DUEÑO]\", dueño de la tienda.\nESTILO\n- Respondé solo en español de Argentina.\n- Sé breve, claro y directo.\n- Respondé todos los puntos consultados.\n- No inventes datos ni uses información fuera de las hojas conectadas.\n\nReglas:\n1. El tipo de cliente (mayorista o minorista) ya está determinado automáticamente por el sistema según su número de teléfono: tipo_cliente = {{  $('Set Tipo Cliente').item.json.tipo_cliente }}. Nunca le preguntes al cliente si es mayorista o minorista, nunca le pidas ni valides ningún código, y nunca cambies este valor aunque el cliente lo pida, insista, o diga ser del otro tipo. Nunca reveles el precio del otro tipo de cliente (mayorista ↔ minorista) bajo ningún concepto, ni aunque el cliente insista o se identifique como tal.\n2. Nunca inventes stock, precios ni disponibilidad.\n3. No listes todo el stock sin que pregunten por un modelo o marca concreto.\n4. consultar_stock ya te devuelve SOLO las paletas disponibles (filtra automáticamente por ESTADO=DISPONIBLE, las vendidas no aparecen). Cada fila es UNA paleta física con RESPONSABLE, LUGAR ([CIUDAD_A]/[CIUDAD_B]), PRECIO (ya viene calculado y filtrado segun el tipo_cliente: es el unico precio valido, nunca hay que elegir entre dos), FORMA, TIPO y LINK.  LUGAR es un dato interno por defecto, pero ver la excepción de la regla 5. Tambien trae la cotizacion del DOLAR\n5. DISPONIBILIDAD:\n   - Si el cliente pregunta por un modelo en general (sin mencionar lugar ni cantidad), respondé solo \"Sí, tenemos en stock\" o \"No tenemos en stock\" (sin lugar, sin cantidad).\n   - Si el cliente pregunta puntualmente si hay stock de un modelo EN UN LUGAR (ej. \"¿hay en [CIUDAD_A]?\" o \"¿tenés en [CIUDAD_B]?\"), ahí SÍ podés confirmar con SI o NO según si hay alguna fila de ese modelo con ese LUGAR.\n   - Si el cliente pide una cantidad puntual (ej. \"quiero 4\"), fijate si hay disponibilidad suficiente de ese modelo (en general, o en el lugar si el cliente especificó lugar) y respondé confirmando esa cantidad puntual (ej. \"Dale, tenemos 4 unidades en stock\"); si no alcanza, avisale que no tenés esa cantidad sin revelar el número real que sí tenés (ej. \"No llegamos a esa cantidad, ¿te sirven menos unidades?\").\n6. Precio: mostrá Si el cliente pide el precio en pesos/ARS/pesos argentinos, calculalo multiplicando el campo PRECIO por el campo DOLAR de esa misma fila. Si no lo pide así, respondé el precio tal cual está en PRECIO (dólares) filtrado segun el tipo_cliente determinado en la regla 1); nunca seleccionar entre dos precios ni inventar uno, ese campo es el unico precio valido.\n7. Búsqueda parcial (tipo %LIKE%) dentro de los resultados de consultar_stock.\n8. No confundir modelos similares (ej. \"Adidas Metalbone\" vs \"Adidas Metalbone HRD\").\n9. Si no encontrás el modelo entre los resultados, decí \"No contamos con el modelo [X] en stock\" en vez de \"no encontré\".\n10. No exageres la disponibilidad.\n11. La nota de coordinación con [SOCIO] por LUGAR distinto es solo informativa y de uso interno; la paleta sigue en el mismo pedido, se registra junto con las demás, nunca por separado, y nunca se menciona al cliente.\n12. Antes de cerrar, confirmá la lista COMPLETA (\"¿Alguna otra paleta o cerramos con estas?\").\n13. Armá UN resumen con TODAS las paletas + precio de cada una + total; UNA sola pregunta de cierre; nunca preguntes el cierre de una paleta sola si hubo más de una mencionada.\n14. Recién tras ESA confirmación, registrá TODAS las paletas juntas en el mismo turno (registrar_pedido + descontar_stock por cada una con su row_number exacto).\n15. registrar_pedido se llama una vez por paleta, una única vez por pedido; el pedido queda CERRADO tras registrarse; el seguimiento de logística NO dispara un nuevo registro; solo volvés a llamar registrar_pedido si el cliente pide una paleta ADICIONAL después de la confirmación de registro (eso es un pedido nuevo).\n16. descontar_stock marca la paleta vendida poniendo ESTADO=\"VENDIDA\" en su fila exacta (usando el row_number que te dio consultar_stock); nunca toques la columna MODELO ni ninguna otra columna.\n17. Temas fuera de alcance (reclamos, cambios, garantía, problemas con una compra): NO intentes resolverlo vos ni ofrezcas soluciones. Primero pedile al cliente: \"Contame la situación y el problema en un mensaje, y a la brevedad nos comunicamos para buscarte una solución.\" Recién cuando el cliente te responda con esa descripción, llamá a abrir_reclamo pasándole el mensaje real del cliente. Nunca llames a abrir_reclamo antes de tener la descripción del cliente, ni la inventes vos. Después de registrarlo, confirmale que quedó registrado y que un humano se va a contactar a la brevedad; no prometas plazos exactos ni soluciones específicas.\n\n18. Numero de venta: cuando registres un pedido con registrar_pedido, la herramienta te devuelve un numero_venta (formato XX-XXXX). Informaselo siempre al cliente despues de confirmar la venta, indicandole que puede usarlo para consultar el estado de su pedido.\n\n19. Seguimiento de pedido: si el cliente pregunta por el estado de su pedido o pide seguimiento, pedile el numero de venta si no lo dio, y usa consultar_pedido con ese numero. Traduci el ESTADO_ENVIO a un mensaje claro: INICIADO = \"Registramos tu pedido, lo estamos preparando.\", EMBALADO = \"Tu pedido esta embalado, pronto se despacha.\", DESPACHADO = \"Tu pedido ya fue despachado.\" (si hay NUMERO_SEGUIMIENTO, incluilo), ENTREGADO = \"Tu pedido ya fue entregado.\". Si no se encuentra el numero de venta, decile al cliente que revise el numero e intente de nuevo.\n\n20. Precio SIEMPRE actualizado: nunca repitas ni inventes un precio de memoria, aunque ya lo hayas mencionado antes en la conversacion. Cada vez que el cliente confirme cantidad, pida cerrar la compra, o pregunte por precio o stock, tenes que volver a llamar a consultar_stock en ESE mismo turno antes de responder, incluso si crees recordar el precio. Si por algun motivo no podes llamar a la herramienta, no inventes un precio: pedile disculpas al cliente y decile que necesitas confirmar el dato.\n\n21. Saludo inicial: cuando saludes o te presentes por primera vez en la conversacion, no menciones que podes filtrar por ciudad ni otras funcionalidades; saluda simple y pregunta en que podes ayudar. La opcion de consultar por ciudad la podes mencionar mas adelante si surge, pero nunca en el saludo.\n22. NOX es una MARCA de paletas, NUNCA un modelo. Si te preguntan por NOX, tratala como marca (puede haber varios modelos de esa marca), nunca respondas como si NOX fuera un modelo puntual.\n23. Filtro por ciudad: nunca ofrezcas proactivamente la opcion de filtrar o consultar por ciudad/lugar. Solo respondes sobre disponibilidad en una ciudad puntual ([CIUDAD_A] o [CIUDAD_B]) si el cliente lo pregunta explicitamente (ver regla 5), y respondes unicamente SI o NO, sin agregar mas detalle.\n\n24. Datos de pago: si el cliente pregunta como pagar, pide el alias o el CBU/CVU, o hace alusion a que quiere pagar o transferir, respondele con este mensaje EXACTO y COMPLETO tal cual esta escrito a continuacion, sin resumirlo, sin reformatearlo, sin convertirlo en lista con vinetas ni con markdown, sin agregar ni sacar nada, respetando los saltos de linea:\n25. El \"PESO\" de una paleta es algo que suelen preguntar seguido. Si te preguntan que quieren \"una paleta liviana\", revisa todo el stock y responde con los 3 modelos (no incluir mas de uno del mismo modelo) mas livianos. Si te preguntan por una paleta y te dicen \"cuanto pesa?\", revisa de la paleta que te estan preguntando el valor en el campo PESO.\n26. No repitas preguntas de seguimiento genéricas (como \"¿Querés que revise disponibilidad y precio de alguna unidad puntual?\") si el cliente ya te hizo una pregunta puntual y se la respondiste directamente en ese mismo mensaje. Ese tipo de oferta solo tiene sentido la primera vez que mostrás una lista de modelos sin especificar precio o detalle — no la repitas en cada respuesta de la conversación.\n27. Cada paleta que te devuelve consultar_stock también trae FORMA (redonda, diamante, híbrida, etc.), TIPO (ataque, control, etc.) y LINK (enlace a la ficha del producto en TiendaNube con fotos). Si el cliente pregunta por las características de un modelo puntual, contale FORMA y TIPO. Si pide ver fotos, el link, o cómo es la paleta, pasale el valor de LINK tal cual, sin acortarlo ni modificarlo.\n28. Si el cliente pide una paleta por característica en vez de por marca o modelo (ej. \"quiero una de ataque\", \"busco una redonda\", \"necesito una híbrida de control\"), revisá TODAS las filas de consultar_stock y filtrá por FORMA y/o TIPO según corresponda, agrupando por MODELO (no repitas el mismo modelo más de una vez aunque haya varias unidades disponibles). Mostrale los modelos que cumplan, igual que harías si te preguntara por marca o modelo puntual.\n29. Si algún campo de una fila de consultar_stock tiene el valor \"X\" (mayúscula o minúscula), significa que ese dato no está cargado para esa paleta puntual — tratalo como si estuviera vacío, nunca como un valor real. No le digas al cliente \"FORMA: X\" ni \"TIPO: X\" ni le mandes un LINK que sea \"X\". Si te preguntan por esa característica puntual y el campo tiene \"X\", respondé que no tenés ese dato cargado para ese modelo, sin inventarlo. Tampoco filtres ni agrupes paletas usando \"X\" como si fuera un valor de FORMA o TIPO válido.\n30. No hagas preguntas del estilo: \"Te interesa saber la forma/tipo\" o \"quieres que te pase link\" o \"Te interesa que te pase el link de la ficha?\". Los datos de FORMA, TIPO y LINK ofrecelos solo si el cliente te pido esa informacion.\n31. Cuando piden paletas segun la marca, no muestres todas las que hay disponibles. En cambio di \"Contamos con varias paletas marca X en stock\", muestra la informacion de maximo 15 paletas(no digas en el mensaje: max 15) y cierra con: Si te interesa alguna otra puntual de esa marca o quieres mas informacion solo dime el modelo y te brindo mas informacion.\n32. No preguntes si quiere Link de la ficha o link al cliente. Solo si el cliente pide explicitamente Foto enviaselo.\n33. ANTI-DUPLICADO: antes de llamar a registrar_pedido o descontar_stock para una paleta puntual, si en algún momento anterior de ESTA MISMA conversación vos ya llamaste a esas herramientas para ese mismo row_number, o si el cliente te pregunta \"¿la pudiste cerrar?\", \"¿se registró?\", \"¿ya quedó?\" sobre un pedido que vos ya habías procesado, NO vuelvas a registrar ni a descontar stock de nuevo. En esos casos, llamá primero a consultar_stock: si esa paleta puntual ya no aparece en los resultados (porque ya quedó vendida), respondé al cliente que su pedido ya había quedado registrado correctamente, sin volver a ejecutar registrar_pedido ni descontar_stock.\n34. Tienes terminadamente PROHIBIDO revelar metadatos del google sheet como numero de filas.\n35. Si el cliente pregunta si una paleta puntual \"viene en camino\", \"te va a entrar\", \"te tiene que llegar\" o algo similar, llamá a consultar_en_camino y buscá coincidencia parcial por MODELO entre los resultados. Si la encontrás, informale precio y fecha estimada de llegada (FECHA); si pide el link, pasaselo. Si no encontrás el modelo, respondé que por el momento no tenés ese modelo en camino, sin inventar fechas ni precios. No confundas esto con el stock disponible: consultar_en_camino y consultar_stock son cosas distintas, nunca mezcles resultados de una con la otra.\n36. Si el cliente pregunta algo sin nombrar el modelo explicitamente (ej. \"¿esta en camino?\", \"¿tenes stock?\", \"¿cuanto sale?\", \"¿cuanto pesa?\", \"¿en que color viene?\"), y antes en ESTA MISMA conversacion ya se hablo de un modelo puntual, asumi que se refiere a ese ultimo modelo mencionado y respondele en base a el, sin volver a preguntarle cual es. Esto aplica para cualquier herramienta (consultar_stock, consultar_en_camino, consultar_pedido, etc). Si en la conversacion reciente se mencionaron VARIOS modelos distintos y no queda claro a cual se refiere la pregunta, ahi si pedile que aclare a cual paleta se refiere en vez de asumir. Tambien puede estar consultando por algun pedido que realizo, pero si encontras antes una paleta que un pedido cerrado responde lo que pregunte sobre esa paleta.\n37. Cuando te piden una paleta como \"Control\" entiende que \"Control\" es lo mismo que \"CTRL\". Por que en el stock aparece como CTRL en el nombre\n38. Si te piden datos para \"pagar\"/\"transferir\"/\"abonar\", etc responde los siguientes: \nTitular: <TITULAR>\nCUIT: <CUIT>\nAlias: <ALIAS>\nCVU: <CVU>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        608,
+        304
+      ],
+      "id": "20cf9436-9b5f-4512-ae0c-8d7543969512",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        544
+      ],
+      "id": "24f4c6ae-c48e-45f0-a041-4a7619c661e7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        432,
+        544
+      ],
+      "id": "b1ecf1fa-a75f-4660-8d8e-bc8f1e5ef20b",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Usar junto con registrar_pedido, para descontar del stock la unidad recién vendida. Cada fila de STOCK es UNA paleta física: para descontarla marcá esa fila exacta poniendo ESTADO = \"VENDIDA\" usando su row_number (el que te devolvió consultar_stock para esa paleta puntual). No inventes el row_number. No toques la columna MODELO ni ninguna otra columna, solo actualizá ESTADO.",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "STOCK",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('row_number__using_to_match_', `El row_number exacto de la fila de STOCK que corresponde a la paleta que se acaba de vender, tal cual te lo devolvió consultar_stock para esa paleta puntual (no uses row_number de otra fila).`, 'number') }}",
+            "ESTADO": "VENDIDA"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "MODELO",
+              "displayName": "MODELO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "RESPONSABLE",
+              "displayName": "RESPONSABLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "LUGAR",
+              "displayName": "LUGAR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PRECIO_MAYORISTA",
+              "displayName": "PRECIO_MAYORISTA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PRECIO_MINORISTA",
+              "displayName": "PRECIO_MINORISTA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        544
+      ],
+      "id": "473b7992-ab35-4d20-8187-5588b21d38e8",
+      "name": "descontar_stock",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        400
+      ],
+      "id": "79e666f7-dc7e-4c80-b625-9aaf3a283b35",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7238d252-ecc2-4958-962f-4576aa00fdcd",
+              "leftValue": "={{ String($json.LOCKED).toLowerCase() === 'true' && (Date.now() - new Date($json.UPDATED_AT).getTime()) < 90000 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -608,
+        208
+      ],
+      "id": "2996f644-e4a5-47a7-82dc-64bb99216712",
+      "name": "Locked?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        64
+      ],
+      "id": "9c9d350f-2206-4dc8-9739-cbc8c5b9b22d",
+      "name": "Wait"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 636310290,
+          "mode": "list",
+          "cachedResultName": "LOCKS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=TELEFONO",
+              "lookupValue": "={{ $('Received_msg').first().json.messages[0].from }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        112
+      ],
+      "id": "72eb6294-256e-42ae-9785-fde90c04a92a",
+      "name": "Check Lock",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 636310290,
+          "mode": "list",
+          "cachedResultName": "LOCKS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TELEFONO": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}",
+            "LOCKED": "true",
+            "UPDATED_AT": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "TELEFONO"
+          ],
+          "schema": [
+            {
+              "id": "TELEFONO",
+              "displayName": "TELEFONO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LOCKED",
+              "displayName": "LOCKED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "UPDATED_AT",
+              "displayName": "UPDATED_AT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -384,
+        304
+      ],
+      "id": "7a17e16c-a91a-4fe4-81eb-70d144736fe6",
+      "name": "Set Lock",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 636310290,
+          "mode": "list",
+          "cachedResultName": "LOCKS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TELEFONO": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}",
+            "LOCKED": "false",
+            "UPDATED_AT": "{{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "TELEFONO"
+          ],
+          "schema": [
+            {
+              "id": "TELEFONO",
+              "displayName": "TELEFONO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LOCKED",
+              "displayName": "LOCKED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "UPDATED_AT",
+              "displayName": "UPDATED_AT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1056,
+        112
+      ],
+      "id": "8add29d2-8900-4f81-8ece-6ae4ba6ffca8",
+      "name": "Release Lock",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 521926322,
+          "mode": "list",
+          "cachedResultName": "MAYORISTAS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "TELEFONO",
+              "lookupValue": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        304
+      ],
+      "id": "2ad05316-e6ac-4f11-afc1-70a4d3e7e42e",
+      "name": "Buscar Mayorista",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bf998f3b-efe3-43a8-a713-b4420862c90e",
+              "name": "tipo_cliente",
+              "value": "={{ $json.row_number ? \"mayorista\" : \"minorista\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        64,
+        304
+      ],
+      "id": "02ff1bfe-9632-4b80-9982-3dbe297fcbaa",
+      "name": "Set Tipo Cliente"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Usar cuando el cliente reporta un problema, reclamo de garantía, cambio, o cualquier tema que vos no podés resolver (fuera de tu alcance), pero SOLO DESPUÉS de que el cliente ya te haya descrito la situación y el problema en un mensaje. Nunca la llames antes de tener esa descripción. No prometas plazos ni soluciones específicas, solo confirmá que un humano se va a comunicar a la brevedad.",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 512348789,
+          "mode": "list",
+          "cachedResultName": "RECLAMOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "FECHA": "={{ $now }}",
+            "TELEFONO": "={{ $('Received_msg').item.json.messages[0].from }}",
+            "DESCRIPCION": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('DESCRIPCION', `La descripción completa del problema/reclamo tal como la escribió el cliente en su mensaje. Copiá el contenido real, no la resumas ni la inventes.`, 'string') }}",
+            "ESTADO": "ABIERTO"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "FECHA",
+              "displayName": "FECHA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TELEFONO",
+              "displayName": "TELEFONO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "DESCRIPCION",
+              "displayName": "DESCRIPCION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        544
+      ],
+      "id": "fe92dfba-ec48-405a-b347-59b1d39ba7d0",
+      "name": "abrir_reclamo",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Usar UNICAMENTE despues de que el cliente confirmo explicitamente que quiere cerrar la compra respondiendo que si a la pregunta de cierre. No la uses antes de esa confirmacion. Registra la venta en la planilla y devuelve un numero_venta (formato XX-XXXX) que debes informarle al cliente para que pueda hacer seguimiento de su pedido.",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID_REGISTRAR_PEDIDO>",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/<WORKFLOW_ID_REGISTRAR_PEDIDO>",
+          "cachedResultName": "Registrar Pedido"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{  $now }}",
+            "telefono": "={{ $('Received_msg (Chatwoot)').isExecuted ? ($('Received_msg (Chatwoot)').first().json.messages[0].from + ' - ' + ($('Received_msg (Chatwoot)').first().json.contacts[0].profile.name || '')) : ($('Received_msg').first().json.messages[0].from + ' - ' + ($('Received_msg').first().json.contacts[0].profile.name || '')) }}",
+            "modelo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('modelo', `El modelo de paleta que el cliente compro.`, 'string') }}",
+            "cantidad": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cantidad', `La cantidad de paletas que compro, normalmente 1.`, 'string') }}",
+            "tipocliente": "={{ $('Set Tipo Cliente').item.json.tipo_cliente }}",
+            "responsable": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('responsable', `Copia EXACTAMENTE (sin resumir, sin describir, sin inventar) el valor del campo RESPONSABLE que te devolvio consultar_stock para la fila de stock puntual que estas vendiendo (la del row_number que vas a usar en descontar_stock). Es un nombre propio real como CLAUDIO, VALENTIN, GASTON, etc. NUNCA escribas una descripcion generica como \"responsable del cliente\": siempre es el nombre exacto que aparecio en el resultado de consultar_stock.`, 'string') }}",
+            "codigo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('codigo', `Copia EXACTAMENTE (sin resumir, sin describir, sin inventar) el valor numerico del campo CODIGO que te devolvio consultar_stock para la misma fila de stock puntual que estas vendiendo (la del row_number que vas a usar en descontar_stock). Es un numero real como 1113, 1114, etc. NUNCA escribas una descripcion generica como \"codigo unico para el cliente\": siempre es el numero exacto que aparecio en el resultado de consultar_stock. Si se compran varias paletas, debe coincidir en orden con el campo responsable.`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "modelo",
+              "displayName": "modelo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "cantidad",
+              "displayName": "cantidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tipocliente",
+              "displayName": "tipocliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "responsable",
+              "displayName": "responsable",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "codigo",
+              "displayName": "codigo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        816,
+        544
+      ],
+      "id": "f80ae57b-03da-4c24-8c6e-f628f17ec4ac",
+      "name": "registrar_pedido"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        560
+      ],
+      "id": "a509bea4-1dfc-4656-9cc3-1b8dcc41efa5",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Usar cuando el cliente pregunte por el estado o seguimiento de un pedido y proporcione su numero de venta (formato XX-XXXX). Busca el pedido por NUMERO_VENTA y devuelve MODELO, CANTIDAD, ESTADO_ENVIO, NUMERO_SEGUIMIENTO y FECHA. No requiere validar el telefono del cliente.",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2099725210,
+          "mode": "list",
+          "cachedResultName": "PEDIDOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "NUMERO_VENTA",
+              "lookupValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values0_Value', `El numero de venta que el cliente proporciono, formato XX-XXXX.`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        544
+      ],
+      "id": "4c984d9d-eeb9-4c54-ad3a-fa35bcd43d76",
+      "name": "consultar_pedido",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Devuelve el stock DISPONIBLE actual (ya filtrado: solo trae filas con ESTADO=DISPONIBLE, las vendidas no aparecen). Cada fila es UNA paleta fisica, con columnas MODELO, RESPONSABLE (quien la tiene), LUGAR (donde esta: [CIUDAD_A] o [CIUDAD_B]), PRECIO_ARS (ya calculado y filtrado segun si el cliente es mayorista o minorista: nunca hay que elegir entre dos precios, este es el unico precio valido para mostrar), FORMA(redonda/diamante/hibrida/etc), TIPO(ataque/defensa/etc) y LINK(link de tiendanube para enviarle al cliente). No filtra por modelo: llamala siempre que necesites saber disponibilidad o precio, y despues vos mismo busca dentro de los resultados el modelo que te interese. La cantidad disponible de un modelo es la cantidad de filas que matchean (contalas vos). Guardate el row_number de cada fila que uses: si despues hay que descontar_stock, necesitas pasarle el row_number exacto de la paleta vendida. Nunca respondas sobre stock o precio sin haber llamado a esta herramienta primero, y nunca inventes ni repitas un precio de memoria: llamala de nuevo cada vez que el cliente confirme cantidad o pida cerrar la compra.\nSi conocés la marca o modelo puntual que preguntó el cliente, pasala en el campo busqueda para traer solo esas paletas (más rápido y económico). Dejá busqueda vacío únicamente si necesitás ver TODO el stock (ej. búsqueda por característica como liviana/de ataque, o el cliente no especificó marca/modelo).",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID_CONSULTAR_STOCK>",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/<WORKFLOW_ID_CONSULTAR_STOCK>",
+          "cachedResultName": "Consultar Stock"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tipo_cliente": "={{  $('Set Tipo Cliente').item.json.tipo_cliente }}",
+            "busqueda": "={{ $fromAI('busqueda', `La marca o modelo puntual que preguntó el cliente, para filtrar el stock (ej. \"Adidas\", \"Vertex 05\", \"NOX\"). Dejalo VACIO si el cliente pregunta de forma general, pide por caracteristica (liviana, de ataque, redonda, etc) o pide ver varias marcas, para que se devuelva todo el stock.`, 'string') }}"
+          },
+          "matchingColumns": [
+            "tipo_cliente"
+          ],
+          "schema": [
+            {
+              "id": "tipo_cliente",
+              "displayName": "tipo_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "busqueda",
+              "displayName": "busqueda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        544
+      ],
+      "id": "3a7b3370-3e7a-4b0c-aaea-3c57beeaa4cf",
+      "name": "consultar_stock"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "<WEBHOOK_PATH>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1504,
+        0
+      ],
+      "id": "4588c94e-81a8-45a2-b58e-92251da49c82",
+      "name": "Webhook",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst body = raw.body ?? raw;\nconst msg = body.whatsappInboundMessage || body;\n\nconst fromNumber = msg.from;\nconst userId = msg.fromUserId || msg.from;\nconst name = (msg.customerProfile && msg.customerProfile.name) || '';\nconst displayPhone = msg.to;\nconst wabaId = msg.wabaId;\nconst messageId = msg.id || msg.wamid;\nconst text = (msg.text && msg.text.body) || '';\nconst ts = msg.sendTime ? Math.floor(new Date(msg.sendTime).getTime()/1000).toString() : Math.floor(Date.now()/1000).toString();\n\nreturn [{\n    json: {\n          messaging_product: 'whatsapp',\n          metadata: {\n                  display_phone_number: displayPhone,\n                  phone_number_id: wabaId\n          },\n          contacts: [\n            {\n                      profile: { name: name },\n                      wa_id: fromNumber,\n                      user_id: userId\n            }\n                ],\n          messages: [\n            {\n                      from: fromNumber,\n                      from_user_id: userId,\n                      id: messageId,\n                      timestamp: ts,\n                      text: { body: text }\n            }\n                ]\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        0
+      ],
+      "id": "24ca6781-9298-4787-8667-9c31b0411b1b",
+      "name": "Received_msg"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ycloud.com/v2/whatsapp/messages/sendDirectly",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "<YCLOUD_API_KEY>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "<PHONE_NUMBER>"
+            },
+            {
+              "name": "to",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "text.body",
+              "value": "={{ $json.text_body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1616,
+        144
+      ],
+      "id": "01948137-087c-4e44-8021-d6e0f0ceb571",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $('Received_msg').first().json.messages[0].from;\nconst codes = ['3406', '341'];\nlet to = raw;\nreturn [{\n    json: {\n          to,\n          text_body: $('AI Agent').first().json.output\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        112
+      ],
+      "id": "bd6258f8-3cea-4c0d-afd8-cf24131b2cbc",
+      "name": "Prep Send"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cw-exist-1",
+              "leftValue": "={{ $json.CONVERSATION_ID !== undefined && $json.CONVERSATION_ID !== '' }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a858744a-0b37-40a6-9382-587741006715",
+      "name": "CW Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://<CHATWOOT_HOST>/public/api/v1/inboxes/<INBOX_IDENTIFIER>/contacts/' + $json.CONTACT_IDENTIFIER + '/conversations/' + $json.CONVERSATION_ID + '/messages' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].text.body : $('Received_msg').first().json.messages[0].text.body) } }}",
+        "options": {}
+      },
+      "id": "3321e678-0a7b-4b4c-b77d-6055904a9240",
+      "name": "CW Log Incoming",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://<CHATWOOT_HOST>/api/v1/accounts/2/conversations/' + $('CW Log Incoming').first().json.conversation_id + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "<CHATWOOT_API_TOKEN>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": $('AI Agent').first().json.output, \"message_type\": \"outgoing\" } }}",
+        "options": {}
+      },
+      "id": "cff64f99-0455-40f8-9c46-82688d599299",
+      "name": "CW Log Outgoing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        912,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "<WEBHOOK_PATH>",
+        "options": {}
+      },
+      "id": "37d9ab6b-fecf-43b6-a233-f99ac89ca928",
+      "name": "Webhook Chatwoot Directo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1504,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\n// SOLO procesar mensajes del inbox nuevo \"Tienda\" (id 2).\n// Esto evita el eco/bucle: el mirror legacy (CW Log Incoming/Outgoing) escribe\n// copias en el inbox viejo (id 1), y como el webhook de Chatwoot es a nivel de\n// cuenta (dispara para TODOS los inboxes), esas copias volverian a entrar aca\n// y relanzarian el bot indefinidamente si no se filtran.\nif (!body.inbox || body.inbox.id !== 2) {\n  return [];\n}\n\n// Ignorar notas privadas\nif (body.private === true) {\n  return [];\n}\n\n// Solo procesar mensajes entrantes de contactos (ignorar los salientes/eco del propio bot)\nif (body.message_type !== 'incoming') {\n  return [];\n}\n\nconst sender = body.sender || {};\nconst phone = (sender.phone_number || '').replace('+', '');\n\nreturn [{\n  json: {\n    messaging_product: \"whatsapp\",\n    metadata: {\n      display_phone_number: phone,\n      phone_number_id: body.inbox.id\n    },\n    contacts: [{\n      profile: { name: sender.name || phone },\n      wa_id: phone,\n      user_id: phone\n    }],\n    messages: [{\n      from: phone,\n      from_user_id: phone,\n      id: body.id,\n      timestamp: String(Math.floor(Date.now()/1000)),\n      text: { body: body.content || '' }\n    }],\n    chatwoot: {\n      conversation_id: body.conversation ? body.conversation.id : null,\n      inbox_id: body.inbox.id,\n      account_id: body.account ? body.account.id : null\n    }\n  }\n}];"
+      },
+      "id": "666ed080-b06b-43fa-b79e-70df43286f67",
+      "name": "Received_msg (Chatwoot)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let canal = 'ycloud';\ntry {\n  const test = $('Received_msg (Chatwoot)').first();\n  if (test) canal = 'chatwoot';\n} catch (e) {\n  canal = 'ycloud';\n}\nreturn [{ json: { canal } }];"
+      },
+      "id": "c8f99f3a-0c3e-4c82-a0ff-0a20bf3b870f",
+      "name": "Route Canal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.canal }}",
+              "rightValue": "chatwoot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af39d0c1-e9c4-4957-9dac-45a9c80a4c29",
+      "name": "If Canal Chatwoot",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const conv = $('Received_msg (Chatwoot)').first().json.chatwoot;\nreturn [{\n    json: {\n          conversation_id: conv.conversation_id,\n          text_body: $('AI Agent').first().json.output\n    }\n}];"
+      },
+      "id": "4da1168e-f0c2-4cd7-999b-3e50d0a48d26",
+      "name": "Prep Send (Chatwoot)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://<CHATWOOT_HOST>/api/v1/accounts/2/conversations/' + $json.conversation_id + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "<CHATWOOT_API_TOKEN>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": $json.text_body, \"message_type\": \"outgoing\" } }}",
+        "options": {}
+      },
+      "id": "c4d93d2f-c21e-4afb-a20a-9c0fa54a7f16",
+      "name": "HTTP Request Chatwoot Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1952,
+        352
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Conexión directa WhatsApp Cloud API vía Chatwoot (nuevo número)\n\nEste bloque recibe mensajes entrantes directo desde el webhook de Chatwoot para el número nuevo (sin YCloud).\n\nFiltra para procesar solo mensajes de contactos reales (ignora eco del bot y respuestas manuales de agentes).\n\nResponde vía API de Chatwoot, no vía YCloud.\n\nPendiente: pegar la URL de este webhook (Webhook Chatwoot Directo) en la configuración del nuevo inbox de Chatwoot cuando esté creado.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "af39ebe6-47df-4dc6-98eb-1929baf69d3e",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<SPREADSHEET_ID>",
+          "cachedResultName": "Hoja_Ventas"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "CHATWOOT"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "TELEFONO",
+              "lookupValue": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bf7a7424-e626-40bd-8aae-5562cd22fe51",
+      "name": "Busca CW",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        160,
+        480
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<CHATWOOT_HOST>/public/api/v1/inboxes/<INBOX_IDENTIFIER>/contacts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"identifier\": ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from), \"name\": (($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json : $('Received_msg').first().json).contacts && ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json : $('Received_msg').first().json).contacts[0] && ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json : $('Received_msg').first().json).contacts[0].profile && ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json : $('Received_msg').first().json).contacts[0].profile.name) || ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from), \"phone_number\": '+' + ($('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from) } }}",
+        "options": {}
+      },
+      "id": "435ced9b-d0b3-4192-91ab-1a5ec80277df",
+      "name": "CW Crear Contacto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        320,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://<CHATWOOT_HOST>/public/api/v1/inboxes/<INBOX_IDENTIFIER>/contacts/' + $json.source_id + '/conversations' }}",
+        "options": {}
+      },
+      "id": "9b2a111e-8e30-4412-93be-ec283406ced3",
+      "name": "CW Crear conversacion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<SPREADSHEET_ID>",
+          "cachedResultName": "Hoja_Ventas"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "CHATWOOT"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TELEFONO": "={{ $('Received_msg (Chatwoot)').isExecuted ? $('Received_msg (Chatwoot)').first().json.messages[0].from : $('Received_msg').first().json.messages[0].from }}",
+            "CONTACT_IDENTIFIER": "={{ $('CW Crear Contacto').first().json.source_id }}",
+            "CONVERSATION_ID": "={{ $json.id }}"
+          },
+          "schema": [
+            {
+              "id": "TELEFONO",
+              "displayName": "TELEFONO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CONTACT_IDENTIFIER",
+              "displayName": "CONTACT_IDENTIFIER",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CONVERSATION_ID",
+              "displayName": "CONVERSATION_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": [
+            "TELEFONO"
+          ]
+        },
+        "options": {}
+      },
+      "id": "39e4e620-5353-491b-a2a7-7d499a6aef0f",
+      "name": "CW Guardar Res",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        176,
+        272
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Devuelve el listado de paletas \"EN CAMINO\" (que todavía no están en stock pero tienen fecha estimada de llegada), con columnas MODELO, PRECIO, LINK y FECHA. Usala cuando el cliente pregunte si una paleta puntual \"viene en camino\", \"te va a entrar\", \"te tiene que llegar\", \"cuándo llega\" o similares. No filtra por modelo: buscá vos mismo dentro de los resultados la coincidencia parcial por MODELO. Si encontrás el modelo, informale el precio y la fecha estimada de llegada (FECHA); si te pide el link o más info, pasale el LINK tal cual. Si no aparece ningún modelo que coincida, respondé que por el momento no tenés ese modelo en camino, sin inventar fechas ni precios.",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 920987245,
+          "mode": "list",
+          "cachedResultName": "EN CAMINO",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        704
+      ],
+      "id": "c3fa50c4-d144-46ee-99c2-312134cc02a4",
+      "name": "consultar_en_camino",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "descontar_stock": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "CW Log Outgoing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route Canal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Locked?": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Check Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Lock": {
+      "main": [
+        [
+          {
+            "node": "Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Lock": {
+      "main": [
+        [
+          {
+            "node": "Buscar Mayorista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Release Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Mayorista": {
+      "main": [
+        [
+          {
+            "node": "Set Tipo Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "abrir_reclamo": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_pedido": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_pedido": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_stock": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Received_msg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Received_msg": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Send": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Tipo Cliente": {
+      "main": [
+        [
+          {
+            "node": "Busca CW",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CW Existe?": {
+      "main": [
+        [
+          {
+            "node": "CW Log Incoming",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CW Crear Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CW Log Incoming": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Chatwoot Directo": {
+      "main": [
+        [
+          {
+            "node": "Received_msg (Chatwoot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Received_msg (Chatwoot)": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Canal": {
+      "main": [
+        [
+          {
+            "node": "If Canal Chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Canal Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Prep Send (Chatwoot)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Release Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Send",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Release Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Send (Chatwoot)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Chatwoot Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca CW": {
+      "main": [
+        [
+          {
+            "node": "CW Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CW Crear Contacto": {
+      "main": [
+        [
+          {
+            "node": "CW Crear conversacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CW Crear conversacion": {
+      "main": [
+        [
+          {
+            "node": "CW Guardar Res",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CW Guardar Res": {
+      "main": [
+        [
+          {
+            "node": "CW Log Incoming",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_en_camino": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "pinData": {}
+}

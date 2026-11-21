@@ -1,0 +1,305 @@
+{
+  "name": "Notificacion de Ventas",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2099725210,
+          "mode": "list",
+          "cachedResultName": "PEDIDOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fa9f2a4a-c37e-405c-a219-5ae2fcef3f81",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aad162c8-9ce9-4397-98ea-5a3e6a1581c0",
+              "name": "conversation_id",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "810b5845-eefb-4b3c-8958-657d86feb705",
+              "name": "account_id",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "49957dd2-e37e-4cae-a895-858b3319bf99",
+              "name": "chatwoot_url",
+              "value": "https://<CHATWOOT_HOST>",
+              "type": "string"
+            },
+            {
+              "id": "50bf1b88-2e0c-4c68-bedd-2fb4d28ae7c9",
+              "name": "chatwoot_token",
+              "value": "<CHATWOOT_API_TOKEN>",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c0d71434-0ab4-4375-977c-5af9e499e506",
+      "name": "Config Dueño"
+    },
+    {
+      "parameters": {
+        "url": "=   {{ $json.chatwoot_url + '/api/v1/accounts/' + $json.account_id + '/conversations/' + $json.conversation_id + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "=   {{ $json.chatwoot_token }}"
+            },
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "1f0d2e91-2323-48cd-9075-943bf371ac57",
+      "name": "Traer mensaje dueño"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst messages = raw.payload || (Array.isArray(raw) ? raw : []);\n\n// Solo mensajes entrantes (los que vos le mandaste al bot), message_type 0 = incoming\nconst incoming = messages.filter(m => m.message_type === 0);\n\nlet ventana_abierta = false;\nlet horas = null;\n\nif (incoming.length > 0) {\n  const ultimoIncoming = incoming.reduce((max, m) => m.created_at > max.created_at ? m : max, incoming[0]);\n  const ahora = Math.floor(Date.now() / 1000);\n  horas = (ahora - ultimoIncoming.created_at) / 3600;\n  ventana_abierta = horas < 24;\n}\n\n// Un item por cada venta nueva detectada por el trigger\nconst ventas = $('Google Sheets Trigger').all();\nreturn ventas.map(v => ({\n  json: {\n    ventana_abierta,\n    horas_desde_ultimo_mensaje: horas,\n    venta: v.json\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "188914a6-6593-4bb7-9e2d-f8bd7038cf89",
+      "name": "Calcular Ventana 24hs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "844f3123-7188-4a7a-ba8f-c3bcbd3e0dd6",
+              "leftValue": "={{ $json.ventana_abierta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "52ed4455-88d9-4e62-8930-964b04d6d1f3",
+      "name": "Ventana abierta?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config Dueño').first().json.chatwoot_url + '/api/v1/accounts/' + $('Config Dueño').first().json.account_id + '/conversations/' + $('Config Dueño').first().json.conversation_id + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $('Config Dueño').first().json.chatwoot_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const v = $('Calcular Ventana 24hs').all()[$itemIndex].json.venta; const s = $json; const raw = v.TIPOCLIENTE === 'mayorista' ? s.PRECIO_MAYORISTA : s.PRECIO_MINORISTA; const usd = parseFloat(String(raw || '').replace(/[^0-9.]/g, '')); const dolar = Number(s.DOLAR); const pesos = (usd && dolar) ? '$' + Math.round(usd * dolar).toLocaleString('es-AR') : 'No disponible'; return { content: \"🛒 Nueva venta registrada\\nModelo: \" + v.MODELO + \"\\nCódigo: \" + v.CODIGO + \"\\nCantidad: \" + v.CANTIDAD + \"\\nPrecio USD: \" + (usd ? \"USD \" + usd : \"No disponible\") + \"\\nPrecio ARS: \" + pesos + \"\\nCliente: \" + v.TIPOCLIENTE + \"\\nTeléfono: \" + v.TELEFONO + \"\\nN° Venta: \" + v.NUMERO_VENTA + \"\\nResponsable: \" + v.RESPONSABLE + \"\\nFECHA: \" + $now.setZone('America/Argentina/Buenos_Aires').toFormat('dd/MM/yyyy HH:mm'), message_type: 'outgoing' }; })() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "1530e1d7-8ec7-41c0-a0fa-56dd8dc54730",
+      "name": "Enviar WhatsApp Dueño"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "0",
+          "mode": "id"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "CODIGO",
+              "lookupValue": "={{ $json.venta.CODIGO }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -144,
+        -144
+      ],
+      "id": "2b981be1-dc7f-425d-a927-e87fa3049548",
+      "name": "Buscar paleta en STOCK",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config Dueño",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Dueño": {
+      "main": [
+        [
+          {
+            "node": "Traer mensaje dueño",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer mensaje dueño": {
+      "main": [
+        [
+          {
+            "node": "Calcular Ventana 24hs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Ventana 24hs": {
+      "main": [
+        [
+          {
+            "node": "Ventana abierta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventana abierta?": {
+      "main": [
+        [
+          {
+            "node": "Buscar paleta en STOCK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp Dueño": {
+      "main": [
+        []
+      ]
+    },
+    "Buscar paleta en STOCK": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp Dueño",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "pinData": {}
+}

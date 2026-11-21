@@ -1,0 +1,284 @@
+{
+  "name": "Registrar Pedido",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "fecha"
+            },
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "modelo"
+            },
+            {
+              "name": "cantidad"
+            },
+            {
+              "name": "tipocliente"
+            },
+            {
+              "name": "responsable"
+            },
+            {
+              "name": "codigo"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        -144
+      ],
+      "id": "755ea0ea-64c8-49d0-8374-56eb668ef66c",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -144
+      ],
+      "id": "2029ae69-3e65-461f-80bf-1d072d564645",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2099725210,
+          "mode": "list",
+          "cachedResultName": "PEDIDOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        -144
+      ],
+      "id": "a0a59218-cfab-461a-a7f3-44beda4d02f5",
+      "name": "Contar Pedidos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('When Executed by Another Workflow').first().json;\nconst count = $input.all().length;\nconst numeroVenta = 'XX-' + (count + 2);\n\nreturn [{\n    json: {\n          fecha: trigger.fecha,\n          telefono: trigger.telefono,\n          modelo: trigger.modelo,\n          cantidad: trigger.cantidad,\n          tipocliente: trigger.tipocliente,\n          responsable: trigger.responsable,\n          codigo: trigger.codigo,\n          numero_venta: numeroVenta\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -144
+      ],
+      "id": "c4b879c5-a644-4cc4-bef0-fe519b749790",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2099725210,
+          "mode": "list",
+          "cachedResultName": "PEDIDOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "FECHA": "={{  $json.fecha }}",
+            "TELEFONO": "={{  $json.telefono }}",
+            "MODELO": "={{  $json.modelo }}",
+            "CANTIDAD": "={{  $json.cantidad }}",
+            "TIPOCLIENTE": "={{  $json.tipocliente }}",
+            "RESPONSABLE": "={{  $json.responsable }}",
+            "CODIGO": "={{  $json.codigo }}",
+            "NUMERO_VENTA": "={{  $json.numero_venta }}",
+            "ESTADO_ENVIO": "INICIADO"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "FECHA",
+              "displayName": "FECHA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TELEFONO",
+              "displayName": "TELEFONO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "MODELO",
+              "displayName": "MODELO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CANTIDAD",
+              "displayName": "CANTIDAD",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TIPOCLIENTE",
+              "displayName": "TIPOCLIENTE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RESPONSABLE",
+              "displayName": "RESPONSABLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CODIGO",
+              "displayName": "CODIGO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NUMERO_VENTA",
+              "displayName": "NUMERO_VENTA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ESTADO_ENVIO",
+              "displayName": "ESTADO_ENVIO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NUMERO_SEGUIMIENTO",
+              "displayName": "NUMERO_SEGUIMIENTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        -96
+      ],
+      "id": "e05afd3b-f98f-48e8-ac65-7bff84fe3378",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Contar Pedidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar Pedidos": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "tags": [],
+  "pinData": {}
+}

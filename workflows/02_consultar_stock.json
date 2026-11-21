@@ -1,0 +1,112 @@
+{
+  "name": "Consultar Stock",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "tipo_cliente"
+            },
+            {
+              "name": "busqueda"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        -144
+      ],
+      "id": "006dabf6-8edf-4cf6-a566-2abea438582b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<SPREADSHEET_ID>",
+          "mode": "list",
+          "cachedResultName": "Hoja_Ventas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "STOCK",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "ESTADO",
+              "lookupValue": "DISPONIBLE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        -144
+      ],
+      "id": "4b459af8-c424-4737-8c2e-67aa5477a31c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<CREDENTIAL_ID>",
+          "name": "<CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const tipoCliente = $('When Executed by Another Workflow').first().json.tipo_cliente;\nconst busqueda = ($('When Executed by Another Workflow').first().json.busqueda || '').trim().toLowerCase();\nconst terminos = busqueda ? busqueda.split(/\\s+/).filter(Boolean) : [];\nconst items = $input.all();\nconst result = [];\nfor (const item of items) {\n  if (terminos.length) {\n    const marca = (item.json.MARCA || '').toLowerCase();\n    const modelo = (item.json.MODELO || '').toLowerCase();\n    const combinado = marca + ' ' + modelo;\n    const matchTodos = terminos.every(t => combinado.includes(t));\n    if (!matchTodos) continue;\n  }\n  const precio = tipoCliente === 'mayorista' ? item.json.PRECIO_MAYORISTA : item.json.PRECIO_MINORISTA;\n  const nuevo = Object.assign({}, item.json);\n  nuevo.PRECIO = precio;\n  delete nuevo.PRECIO_MAYORISTA;\n  delete nuevo.PRECIO_MINORISTA;\n  result.push({ json: nuevo });\n}\nif (result.length === 0) {\n  return [{ json: { sin_resultados: true, mensaje: \"No se encontraron paletas en stock que coincidan con la busqueda.\" } }];\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -144
+      ],
+      "id": "1ebbd3a1-18de-4b9e-9fbf-4b180ce08118",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "pinData": {}
+}
